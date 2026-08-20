@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用药方案二维码生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+</head>
+<body>
+<h1>用药方案二维码生成器</h1>
+<p>输入药品名称与服药时间点，生成可分享的二维码。另一台手机用 App 的扫码导入功能扫描即可。</p>
+<div>
+<label>药品名称<input id="drugName"></label><br>
+<label>剂量<input id="dosage"></label><br>
+<div id="schedules"></div>
+<button onclick="addSchedule()">添加时间点</button>
+<button onclick="generate()">生成二维码</button>
+</div>
+<div id="qr"></div>
+<script>
+function addSchedule() {
+  const d = document.createElement('div');
+  d.innerHTML = '时间<input class="time" value="08:00"> 时机<select class="timing"><option>早餐前</option><option selected>早餐后</option><option>午餐后</option><option>晚餐后</option><option>睡前</option></select> <button class="del">删除</button><br>';
+  d.querySelector('.del').onclick = () => d.remove();
+  document.getElementById('schedules').appendChild(d);
+}
+function generate() {
+  const name = document.getElementById('drugName').value || '未知药品';
+  const dosage = document.getElementById('dosage').value || '';
+  const schedules = Array.from(document.querySelectorAll('#schedules > div')).map(el => ({
+    time: el.querySelector('.time').value,
+    timing: el.querySelector('.timing').value
+  }));
+  const payload = JSON.stringify({ version: 1, drugs: [{ name, dosage, note: '', schedules }] });
+  const el = document.getElementById('qr');
+  el.innerHTML = '';
+  QRCode.toCanvas(el, payload, { width: 300 }, err => { if (err) alert(err); });
+}
+addSchedule();
+</script>
+</body>
+</html>
