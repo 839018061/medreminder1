@@ -38,7 +38,7 @@ object RegimenCodec {
         regimen.drugs.map { item ->
             val drug = Drug(name = item.name, dosage = item.dosage, remark = item.remark)
             val schedules = item.times.map { t ->
-                DoseSchedule(time = t.time, repeatDays = t.repeatDays, relation = t.relation)
+                DoseSchedule(drugId = drug.id, time = t.time, repeatDays = t.repeatDays, relation = t.relation)
             }
             drug to schedules
         }

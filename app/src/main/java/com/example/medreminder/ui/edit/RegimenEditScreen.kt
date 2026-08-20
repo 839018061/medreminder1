@@ -130,7 +130,7 @@ fun RegimenEditScreen(vm: MainViewModel, onBack: () -> Unit) {
                     val schedules = timePoints.map { tp ->
                         val rd = if (tp.useDaily || tp.weekDays.isEmpty()) "daily"
                         else tp.weekDays.sorted().joinToString(",")
-                        DoseSchedule(time = tp.time.trim(), repeatDays = rd, relation = tp.relation)
+                        DoseSchedule(drugId = drug.id, time = tp.time.trim(), repeatDays = rd, relation = tp.relation)
                     }
                     vm.addDrug(drug, schedules)
                     onBack()
@@ -143,6 +143,7 @@ fun RegimenEditScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TimePointCard(
     draft: TimePointDraft,
