@@ -9,31 +9,24 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout 代码
         uses: actions/checkout@v4
 
-      - name: Setup JDK 17
+      - name: 安装 JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Ensure Gradle wrapper
-        run: |
-          cd $GITHUB_WORKSPACE
-          if [ ! -f ./gradlew ]; then
-            wget -q https://mirrors.cloud.tencent.com/gradle/gradle-8.6-bin.zip -O gradle.zip
-            unzip -q gradle.zip
-            ./gradle-8.6/bin/gradle wrapper --gradle-version 8.6
-            rm -rf gradle-8.6 gradle.zip
-          fi
+      - name: 安装 Gradle 8.6（官方 setup-gradle action）
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.6'
 
-      - name: Build debug APK
-        run: |
-          chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+      - name: 构建 Debug APK（使用系统 gradle，无需 wrapper）
+        run: gradle assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
