@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">用药提醒</string>
+    <string name="channel_alarm_name">服药闹钟</string>
+    <string name="channel_alarm_desc">到点强提醒服药</string>
+    <string name="notification_channel_reminder">服药提醒</string>
 </resources>

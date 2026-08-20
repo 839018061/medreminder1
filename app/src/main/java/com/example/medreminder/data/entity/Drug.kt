@@ -3,10 +3,12 @@ package com.example.medreminder.data.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "drugs")
+/** 药品 */
+@Entity(tableName = "drug")
 data class Drug(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
-    val dosage: String = "",
-    val note: String = ""
+    val name: String,          // 药品名
+    val dosage: String,        // 单次剂量，如 "1片"、"5ml"
+    val remark: String = "",   // 备注（饭前/饭后等补充）
+    val active: Boolean = true
 )

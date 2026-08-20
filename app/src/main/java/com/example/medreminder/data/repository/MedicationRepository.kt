@@ -1,28 +1,58 @@
 package com.example.medreminder.data.repository
 
-import com.example.medreminder.data.AppDatabase
+import com.example.medreminder.data.dao.DrugDao
+import com.example.medreminder.data.dao.RecordDao
+import com.example.medreminder.data.dao.ScheduleDao
 import com.example.medreminder.data.entity.AdherenceRecord
 import com.example.medreminder.data.entity.DoseSchedule
 import com.example.medreminder.data.entity.Drug
 import kotlinx.coroutines.flow.Flow
 
-class MedicationRepository(private val db: AppDatabase) {
-    fun observeDrugs(): Flow<List<Drug>> = db.drugDao().getAll()
-    fun observeSchedules(drugId: Long): Flow<List<DoseSchedule>> = db.scheduleDao().getForDrug(drugId)
-    fun observeAllSchedules(): Flow<List<DoseSchedule>> = db.scheduleDao().getAll()
-    fun observeRecords(drugId: Long): Flow<List<AdherenceRecord>> = db.recordDao().getForDrug(drugId)
+class MedicationRepository(
+    private val drugDao: DrugDao,
+    private val scheduleDao: ScheduleDao,
+    private val recordDao: RecordDao
+) {
+    val drugs: Flow<List<Drug>> = drugDao.observeActive()
+    val schedules: Flow<List<DoseSchedule>> = scheduleDao.observeActive()
+    val records: Flow<List<AdherenceRecord>> = recordDao.observeAll()
 
-    suspend fun saveDrug(drug: Drug): Long = db.drugDao().insert(drug)
-    suspend fun updateDrug(drug: Drug) = db.drugDao().update(drug)
-    suspend fun deleteDrug(drug: Drug) = db.drugDao().delete(drug)
-    suspend fun deleteDrugById(id: Long) = db.drugDao().deleteById(id)
+    fun recordsByDate(date: String): Flow<List<AdherenceRecord>> = recordDao.observeByDate(date)
 
-    suspend fun saveSchedule(schedule: DoseSchedule): Long = db.scheduleDao().insert(schedule)
-    suspend fun updateSchedule(schedule: DoseSchedule) = db.scheduleDao().update(schedule)
-    suspend fun deleteSchedule(schedule: DoseSchedule) = db.scheduleDao().delete(schedule)
-    suspend fun deleteSchedulesForDrug(drugId: Long) = db.scheduleDao().deleteByDrugId(drugId)
+    suspend fun allDrugs(): List<Drug> = drugDao.getAll()
+    suspend fun allSchedules(): List<DoseSchedule> = scheduleDao.getAll()
 
-    suspend fun saveRecord(record: AdherenceRecord): Long = db.recordDao().insert(record)
-    suspend fun getRecordsByDate(date: String): List<AdherenceRecord> = db.recordDao().getByDate(date)
-    suspend fun getAllRecords(): Flow<List<AdherenceRecord>> = db.recordDao().getAll()
+    suspend fun addDrug(drug: Drug, schedules: List<DoseSchedule>) {
+        val id = drugDao.insert(drug)
+        schedules.forEach { scheduleDao.insert(it.copy(drugId = id)) }
+    }
+
+    suspend fun updateDrug(drug: Drug, schedules: List<DoseSchedule>) {
+        drugDao.update(drug)
+        scheduleDao.deleteByDrug(drug.id)
+        schedules.forEach { scheduleDao.insert(it.copy(drugId = drug.id)) }
+    }
+
+    suspend fun deactivateDrug(drugId: Long) {
+        drugDao.deactivate(drugId)
+        scheduleDao.deleteByDrug(drugId)
+    }
+
+    suspend fun scheduleById(id: Long): DoseSchedule? = scheduleDao.getAll().find { it.id == id }
+    suspend fun drugById(id: Long): Drug? = drugDao.getAll().find { it.id == id }
+
+    suspend fun recordFor(scheduleId: Long, date: String): AdherenceRecord? =
+        recordDao.find(scheduleId, date)
+
+    suspend fun insertOrUpdateRecord(record: AdherenceRecord) {
+        val existing = recordDao.find(record.scheduleId, record.planDate)
+        if (existing == null) recordDao.insert(record)
+        else recordDao.update(record.copy(id = existing.id))
+    }
+
+    suspend fun clearAll() {
+        recordDao.clear()
+        scheduleDao.clear()
+        drugDao.clear()
+    }
 }

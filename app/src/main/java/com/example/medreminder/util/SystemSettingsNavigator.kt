@@ -6,22 +6,29 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 
-/** 跳转到系统相关设置页 */
 object SystemSettingsNavigator {
 
-    fun openAppNotificationSettings(context: Context) {
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        context.startActivity(intent)
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.startActivity(
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+            )
+        }
     }
 
-    fun openAlarmPermissionSettings(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+    fun openNotificationSettings(context: Context) {
+        val intent = Intent().apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            } else {
+                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
                 data = Uri.parse("package:${context.packageName}")
             }
-            context.startActivity(intent)
         }
+        context.startActivity(intent)
     }
 
     fun openBatteryOptimizationSettings(context: Context) {

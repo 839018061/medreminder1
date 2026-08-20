@@ -1,31 +1,33 @@
 package com.example.medreminder.domain
 
 import com.example.medreminder.data.entity.AdherenceRecord
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 object AdherenceCalculator {
-    private val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-    /** 计算某药在指定日期是否已按时服药 */
-    fun hasTaken(records: List<AdherenceRecord>, drugId: Long, date: String): Boolean {
-        return records.any { it.drugId == drugId && it.date == date && it.taken }
+    fun score(status: String): Double = when (status) {
+        AdherenceRecord.TAKEN -> 1.0
+        AdherenceRecord.LATE -> 0.5
+        else -> 0.0
     }
 
-    /** 最近 N 天服药率 */
-    fun adherenceRate(records: List<AdherenceRecord>, drugId: Long, days: Int = 30): Float {
-        if (days <= 0) return 0f
-        var taken = 0
-        var total = 0
-        val cal = Calendar.getInstance()
-        repeat(days) { i ->
-            cal.add(Calendar.DAY_OF_YEAR, -i)
-            val date = fmt.format(cal.time)
-            total++
-            if (hasTaken(records, drugId, date)) taken++
-            cal.add(Calendar.DAY_OF_YEAR, i)
-        }
-        return if (total == 0) 0f else taken.toFloat() / total
+    fun rate(records: List<AdherenceRecord>): Float {
+        if (records.isEmpty()) return 1f
+        val total = records.sumOf { score(it.status) }
+        return (total / records.size).toFloat()
+    }
+
+    data class Summary(
+        val total: Int,
+        val taken: Int,
+        val late: Int,
+        val missed: Int,
+        val rate: Float
+    )
+
+    fun summarize(records: List<AdherenceRecord>): Summary {
+        val taken = records.count { it.status == AdherenceRecord.TAKEN }
+        val late = records.count { it.status == AdherenceRecord.LATE }
+        val missed = records.count { it.status == AdherenceRecord.MISSED }
+        return Summary(records.size, taken, late, missed, rate(records))
     }
 }

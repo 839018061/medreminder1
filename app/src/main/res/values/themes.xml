@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.MedicationReminder" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+    <style name="Theme.MedReminder" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/brand_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.MedReminder.Alarm" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/alarm_background</item>
     </style>
 </resources>

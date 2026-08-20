@@ -6,40 +6,56 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.example.medreminder.data.entity.DoseSchedule
-import java.util.Calendar
+import com.example.medreminder.util.DateUtils
 
 object AlarmScheduler {
-    fun schedule(context: Context, schedule: DoseSchedule) {
+
+    const val ACTION_DOSE_ALARM = "com.example.medreminder.ACTION_DOSE_ALARM"
+    const val EXTRA_SCHEDULE_ID = "schedule_id"
+    const val EXTRA_DRUG_NAME = "drug_name"
+    const val EXTRA_DOSAGE = "dosage"
+    const val EXTRA_RELATION = "relation"
+
+    fun schedule(context: Context, schedule: DoseSchedule, drugName: String, dosage: String) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val parts = schedule.time.split(":")
-        val hour = parts.getOrNull(0)?.toIntOrNull() ?: 8
-        val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+        val pi = pendingIntent(context, schedule, drugName, dosage)
+        val triggerAt = DateUtils.nextTriggerMillis(schedule.time, schedule.repeatDays)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            return
         }
-        val pi = pendingIntent(context, schedule)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
-        } else {
-            am.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
-        }
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
     }
 
-    fun cancel(context: Context, schedule: DoseSchedule) {
+    fun cancel(context: Context, scheduleId: Long) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        am.cancel(pendingIntent(context, schedule))
-    }
-
-    private fun pendingIntent(context: Context, s: DoseSchedule): PendingIntent {
         val intent = Intent(context, AlarmReceiver::class.java).apply {
-            putExtra("drugId", s.drugId)
-            putExtra("scheduleId", s.id)
+            action = ACTION_DOSE_ALARM
+            putExtra(EXTRA_SCHEDULE_ID, scheduleId)
+        }
+        val pi = PendingIntent.getBroadcast(
+            context, scheduleId.toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        am.cancel(pi)
+        pi.cancel()
+    }
+
+    private fun pendingIntent(
+        context: Context,
+        schedule: DoseSchedule,
+        drugName: String,
+        dosage: String
+    ): PendingIntent {
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            action = ACTION_DOSE_ALARM
+            putExtra(EXTRA_SCHEDULE_ID, schedule.id)
+            putExtra(EXTRA_DRUG_NAME, drugName)
+            putExtra(EXTRA_DOSAGE, dosage)
+            putExtra(EXTRA_RELATION, schedule.relation)
         }
         return PendingIntent.getBroadcast(
-            context, s.id.toInt(), intent,
+            context, schedule.id.toInt(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }

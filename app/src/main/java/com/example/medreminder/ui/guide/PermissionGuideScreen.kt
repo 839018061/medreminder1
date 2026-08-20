@@ -1,147 +1,196 @@
 package com.example.medreminder.ui.guide
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import android.os.Build
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.medreminder.ui.theme.BrandGreen
+import com.example.medreminder.ui.theme.ErrorRed
+import com.example.medreminder.ui.theme.WarmOrange
 import com.example.medreminder.util.PermissionChecker
 import com.example.medreminder.util.SystemSettingsNavigator
 import com.example.medreminder.util.VendorSettings
 
+private data class GuideItem(
+    val key: String,
+    val title: String,
+    val desc: String,
+    val granted: Boolean?, // null = 无法自动检测，需手动确认
+    val onClick: () -> Unit
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionGuideScreen(onBack: () -> Unit) {
-    var refreshTick by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    var refreshKey by remember { mutableStateOf(0) }
+
+    // 从系统设置页返回后自动刷新各项状态
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) refreshTick++
+            if (event == Lifecycle.Event.ON_RESUME) refreshKey++
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val notif = PermissionChecker.notificationGranted(ctx)
-    val alarm = PermissionChecker.exactAlarmGranted(ctx)
-    val battery = PermissionChecker.batteryOptimizationExempt(ctx)
-    val grantedCount = listOf(notif, alarm, battery).count { it }
+    val items = remember(refreshKey) {
+        buildList {
+            add(
+                GuideItem(
+                    "notify", "通知权限",
+                    "到点时弹出强提醒通知，锁屏也能看到",
+                    PermissionChecker.isNotificationEnabled(context),
+                    { SystemSettingsNavigator.openNotificationSettings(context) }
+                )
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(
+                    GuideItem(
+                        "alarm", "精确闹钟",
+                        "允许在精确时间触发服药提醒，不延迟",
+                        PermissionChecker.isExactAlarmEnabled(context),
+                        { SystemSettingsNavigator.openExactAlarmSettings(context) }
+                    )
+                )
+            }
+            add(
+                GuideItem(
+                    "battery", "电池优化白名单",
+                    "防止系统在后台清理应用导致提醒失效",
+                    PermissionChecker.isIgnoringBatteryOptimizations(context),
+                    { SystemSettingsNavigator.openBatteryOptimizationRequest(context) }
+                )
+            )
+            add(
+                GuideItem(
+                    "autostart", "自启动 / 后台运行",
+                    "小米、华为、OPPO、vivo 等需手动允许自启动",
+                    null,
+                    { VendorSettings.openAutoStart(context) }
+                )
+            )
+        }
+    }
+
+    val done = items.count { it.granted == true }
+    val total = items.size
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("权限与后台设置") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    }
                 }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        progress = grantedCount / 3f,
-                        modifier = Modifier.size(56.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text("已开启 ${grantedCount}/3", style = MaterialTheme.typography.titleMedium)
-                        Text("开启全部权限，锁屏也能准时提醒", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "为保证服药提醒不漏，建议全部开启",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "已开启 $done / $total 项",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (done == total) BrandGreen
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "点击每项可跳转到系统设置，设置完成后返回本页会自动刷新状态。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
-
-            PermissionItem(
-                icon = { Icon(Icons.Default.Notifications, null, tint = Color.White) },
-                title = "通知权限",
-                desc = "在屏幕关闭或锁屏时显示服药提醒通知",
-                granted = notif,
-                onAction = { SystemSettingsNavigator.openAppNotificationSettings(ctx) }
-            )
-            PermissionItem(
-                icon = { Icon(Icons.Default.Alarm, null, tint = Color.White) },
-                title = "精确闹钟",
-                desc = "确保提醒在设定时间准时响起，不受系统限制",
-                granted = alarm,
-                onAction = { SystemSettingsNavigator.openAlarmPermissionSettings(ctx) }
-            )
-            PermissionItem(
-                icon = { Icon(Icons.Default.BatteryFull, null, tint = Color.White) },
-                title = "电池白名单",
-                desc = "避免系统清理后台导致提醒被延迟",
-                granted = battery,
-                onAction = { SystemSettingsNavigator.openBatteryOptimizationRequest(ctx) }
-            )
-            PermissionItem(
-                icon = { Icon(Icons.Default.PhoneAndroid, null, tint = Color.White) },
-                title = "自启动（${VendorSettings.vendorLabel}）",
-                desc = "国产手机需手动开启自启动，防止锁屏后提醒失效",
-                granted = false,
-                autoGrantedNote = "需手动开启",
-                onAction = { VendorSettings.openAutoStartSettings(ctx) }
-            )
+            items(items, key = { it.key }) { item ->
+                GuideCard(item)
+            }
         }
     }
 }
 
 @Composable
-private fun PermissionItem(
-    icon: @Composable () -> Unit,
-    title: String,
-    desc: String,
-    granted: Boolean,
-    onAction: () -> Unit,
-    autoGrantedNote: String? = null
-) {
+private fun GuideCard(item: GuideItem) {
+    val (icon, tint, status) = when (item.granted) {
+        true -> Triple(Icons.Filled.CheckCircle, BrandGreen, "已开启")
+        false -> Triple(Icons.Filled.Cancel, ErrorRed, "未开启")
+        null -> Triple(Icons.Filled.Info, WarmOrange, "需手动开启")
+    }
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier.size(44.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.errorContainer
-                ) {
-                    Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { icon() }
-                }
-            }
+            Icon(icon, null, tint = tint, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    item.desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(status, style = MaterialTheme.typography.labelLarge, color = tint, fontWeight = FontWeight.Bold)
             }
-            if (granted) {
-                Text("已开启", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-            } else if (autoGrantedNote != null) {
-                Text(autoGrantedNote, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.width(8.dp))
-                Button(onClick = onAction) { Text("去开启") }
-            } else {
-                Button(onClick = onAction) { Text("去开启") }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = item.onClick) {
+                Text(if (item.granted == true) "查看" else "去开启")
             }
         }
     }

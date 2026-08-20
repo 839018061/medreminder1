@@ -3,40 +3,133 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>用药方案二维码生成器</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<title>用药方案二维码生成器（家属端）</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<style>
+  :root{--green:#2E7D5B;--green-dark:#1B5E43;--green-light:#E8F5EE;--danger:#E53935;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f4f8f6;color:#222;padding:24px;max-width:720px;margin:0 auto;}
+  h1{color:var(--green-dark);font-size:24px;margin-bottom:6px;}
+  .sub{color:#666;font-size:14px;margin-bottom:24px;}
+  .drug-card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .drug-card h3{color:var(--green);margin-bottom:12px;font-size:16px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  label{display:block;font-size:13px;color:#555;margin-bottom:4px;}
+  input,select{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:15px;}
+  .field{flex:1;min-width:140px;}
+  .times{margin-top:8px;}
+  .time-item{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;}
+  .btn{border:none;border-radius:8px;padding:10px 16px;font-size:15px;cursor:pointer;}
+  .btn-primary{background:var(--green);color:#fff;width:100%;padding:14px;font-size:16px;font-weight:600;margin-top:8px;}
+  .btn-primary:hover{background:var(--green-dark);}
+  .btn-add{background:var(--green-light);color:var(--green-dark);font-size:14px;}
+  .btn-del{background:#fdecea;color:var(--danger);font-size:14px;padding:10px 12px;}
+  .btn-copy{background:#eee;color:#333;font-size:13px;margin-top:10px;}
+  #result{display:none;text-align:center;margin-top:24px;background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  #qrcode{display:inline-block;padding:12px;background:#fff;border:1px solid #eee;border-radius:8px;}
+  #qrcode img{display:block;}
+  #json{width:100%;height:120px;margin-top:16px;font-family:monospace;font-size:12px;padding:10px;border:1px solid #ccc;border-radius:8px;resize:vertical;}
+  .hint{font-size:12px;color:#999;margin-top:8px;}
+</style>
 </head>
 <body>
 <h1>用药方案二维码生成器</h1>
-<p>输入药品名称与服药时间点，生成可分享的二维码。另一台手机用 App 的扫码导入功能扫描即可。</p>
-<div>
-<label>药品名称<input id="drugName"></label><br>
-<label>剂量<input id="dosage"></label><br>
-<div id="schedules"></div>
-<button onclick="addSchedule()">添加时间点</button>
-<button onclick="generate()">生成二维码</button>
+<div class="sub">家属填写用药方案 → 生成二维码 → 老人用「用药提醒」App 扫码一键导入</div>
+
+<div id="drugs"></div>
+
+<button class="btn btn-add" onclick="addDrug()">＋ 添加药品</button>
+<button class="btn btn-primary" onclick="generate()">生成二维码</button>
+
+<div id="result">
+  <div id="qrcode"></div>
+  <p class="hint">请老人打开 App → 右上角二维码图标 → 扫码导入</p>
+  <textarea id="json" readonly></textarea>
+  <button class="btn btn-copy" onclick="copyJson()">复制方案内容</button>
+  <p class="hint" id="copyHint"></p>
 </div>
-<div id="qr"></div>
+
 <script>
-function addSchedule() {
-  const d = document.createElement('div');
-  d.innerHTML = '时间<input class="time" value="08:00"> 时机<select class="timing"><option>早餐前</option><option selected>早餐后</option><option>午餐后</option><option>晚餐后</option><option>睡前</option></select> <button class="del">删除</button><br>';
-  d.querySelector('.del').onclick = () => d.remove();
-  document.getElementById('schedules').appendChild(d);
+const WEEK = {1:'周一',2:'周二',3:'周三',4:'周四',5:'周五',6:'周六',7:'周日'};
+
+function relationOptions(sel){
+  return ['饭前','饭后','睡前','无'].map(r=>`<option ${sel===r?'selected':''}>${r}</option>`).join('');
 }
-function generate() {
-  const name = document.getElementById('drugName').value || '未知药品';
-  const dosage = document.getElementById('dosage').value || '';
-  const schedules = Array.from(document.querySelectorAll('#schedules > div')).map(el => ({
-    time: el.querySelector('.time').value,
-    timing: el.querySelector('.timing').value
-  }));
-  const payload = JSON.stringify({ version: 1, drugs: [{ name, dosage, note: '', schedules }] });
-  const el = document.getElementById('qr');
-  el.innerHTML = '';
-  QRCode.toCanvas(el, payload, { width: 300 }, err => { if (err) alert(err); });
+function repeatOptions(sel){
+  return `<option value="daily" ${sel==='daily'?'selected':''}>每天</option>`+
+    Object.keys(WEEK).map(k=>`<option value="${k}" ${sel===k?'selected':''}>${WEEK[k]}</option>`).join('');
 }
-addSchedule();
+function drugHtml(d,i){
+  const t = d.times[0];
+  return `<div class="drug-card">
+    <h3>药品 ${i+1}</h3>
+    <div class="row">
+      <div class="field"><label>药品名</label><input data-name value="${esc(d.name)}"></div>
+      <div class="field"><label>单次剂量</label><input data-dosage value="${esc(d.dosage)}" placeholder="1片 / 5ml"></div>
+    </div>
+    <div class="field" style="margin-bottom:10px"><label>备注（可选）</label><input data-remark value="${esc(d.remark)}"></div>
+    <div class="times">
+      ${d.times.map(t=>timeHtml(t)).join('')}
+    </div>
+    <button class="btn btn-add" onclick="addTime(this)">＋ 添加服药时间</button>
+    <button class="btn btn-del" style="float:right" onclick="delDrug(this)">删除此药</button>
+    <div style="clear:both"></div>
+  </div>`;
+}
+function timeHtml(t){
+  return `<div class="time-item">
+    <div class="field"><label>时间</label><input data-time value="${esc(t.time)}" placeholder="08:00" style="width:90px"></div>
+    <div class="field"><label>重复</label><select data-repeat>${repeatOptions(t.repeatDays)}</select></div>
+    <div class="field"><label>服用时机</label><select data-relation>${relationOptions(t.relation)}</select></div>
+    <button class="btn btn-del" onclick="delTime(this)">删除</button>
+  </div>`;
+}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+let state = [{name:'',dosage:'',remark:'',times:[{time:'08:00',repeatDays:'daily',relation:'饭前'}]}];
+
+function render(){document.getElementById('drugs').innerHTML = state.map(drugHtml).join('');}
+function addDrug(){state.push({name:'',dosage:'',remark:'',times:[{time:'08:00',repeatDays:'daily',relation:'饭前'}]});render();}
+function addTime(btn){const idx=btn.closest('.drug-card');const cards=[...document.querySelectorAll('.drug-card')];const i=cards.indexOf(idx);state[i].times.push({time:'08:00',repeatDays:'daily',relation:'饭前'});render();}
+function delDrug(btn){const cards=[...document.querySelectorAll('.drug-card')];const i=cards.indexOf(btn.closest('.drug-card'));state.splice(i,1);render();}
+function delTime(btn){const card=btn.closest('.drug-card');const cards=[...document.querySelectorAll('.drug-card')];const di=cards.indexOf(card);const times=[...card.querySelectorAll('.time-item')];const ti=times.indexOf(btn.closest('.time-item'));state[di].times.splice(ti,1);if(state[di].times.length===0)state[di].times.push({time:'08:00',repeatDays:'daily',relation:'饭前'});render();}
+
+function collect(){
+  const cards=[...document.querySelectorAll('.drug-card')];
+  const drugs=[];
+  cards.forEach((card,di)=>{
+    const name=card.querySelector('[data-name]').value.trim();
+    const dosage=card.querySelector('[data-dosage]').value.trim();
+    const remark=card.querySelector('[data-remark]').value.trim();
+    const times=[...card.querySelectorAll('.time-item')].map(ti=>({
+      time:ti.querySelector('[data-time]').value.trim(),
+      repeatDays:ti.querySelector('[data-repeat]').value,
+      relation:ti.querySelector('[data-relation]').value
+    }));
+    if(name&&dosage)drugs.push({name,dosage,remark,times});
+  });
+  return drugs;
+}
+
+function generate(){
+  const drugs=collect();
+  if(drugs.length===0){alert('请至少填写一个完整的药品（药名+剂量）');return;}
+  const regimen={version:1,drugs};
+  const text=JSON.stringify(regimen);
+  document.getElementById('json').value=text;
+  const qr=qrcode(0,'M');
+  qr.addData(text);
+  qr.make();
+  document.getElementById('qrcode').innerHTML=qr.createImgTag(5,4);
+  document.getElementById('result').style.display='block';
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+function copyJson(){
+  const ta=document.getElementById('json');ta.select();ta.setSelectionRange(0,999999);
+  document.execCommand('copy');
+  document.getElementById('copyHint').textContent='已复制，可粘贴到 App 导入';
+}
+render();
 </script>
 </body>
 </html>
