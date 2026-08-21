@@ -26,6 +26,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 val repo = app.repository
                 val existing = repo.recordFor(scheduleId, DateUtils.today())
                 if (existing == null) {
+                    // 首次触发：创建 PENDING 待处理记录，等待用户在弹窗中作出选择
                     repo.insertOrUpdateRecord(
                         AdherenceRecord(
                             scheduleId = scheduleId,
@@ -33,7 +34,7 @@ class AlarmReceiver : BroadcastReceiver() {
                             planDate = DateUtils.today(),
                             planTime = System.currentTimeMillis(),
                             actualTime = null,
-                            status = AdherenceRecord.MISSED
+                            status = AdherenceRecord.PENDING
                         )
                     )
                 }

@@ -19,21 +19,28 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import android.content.Intent
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.example.medreminder.importexport.RegimenCodec
 import com.example.medreminder.ui.MainViewModel
 import com.example.medreminder.ui.theme.BrandGreen
 import com.example.medreminder.ui.theme.ErrorRed
+import com.example.medreminder.util.PdfExporter
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
@@ -42,6 +49,9 @@ import com.journeyapps.barcodescanner.ScanOptions
 fun ImportScreen(vm: MainViewModel, onBack: () -> Unit) {
     var jsonText by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val drugs by vm.drugs.collectAsState()
+    val schedules by vm.schedules.collectAsState()
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         result.contents?.let { jsonText = it }
@@ -113,6 +123,30 @@ fun ImportScreen(vm: MainViewModel, onBack: () -> Unit) {
                     color = if (it == "导入成功") BrandGreen else ErrorRed,
                     style = MaterialTheme.typography.bodyLarge
                 )
+            }
+
+            androidx.compose.foundation.layout.Spacer(androidx.compose.foundation.layout.height(8.dp))
+            Text("导出用药方案（分享给家属）", style = MaterialTheme.typography.titleMedium)
+            Button(
+                onClick = {
+                    val uri = PdfExporter.export(context, drugs, schedules)
+                    if (uri != null) {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/pdf"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "分享用药方案"))
+                    } else {
+                        msg = "导出失败"
+                    }
+                },
+                enabled = drugs.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                Icon(Icons.Default.PictureAsPdf, null)
+                Spacer(Modifier.height(0.dp))
+                Text(" 导出 PDF 并分享")
             }
         }
     }

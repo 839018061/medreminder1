@@ -10,8 +10,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DrugDao {
 
-    @Query("SELECT * FROM drug WHERE active = 1 ORDER BY id")
+    @Query("SELECT * FROM drug WHERE active = 1 ORDER BY owner, id")
     fun observeActive(): Flow<List<Drug>>
+
+    @Query("SELECT DISTINCT owner FROM drug WHERE active = 1 ORDER BY owner")
+    fun observeOwners(): Flow<List<String>>
 
     @Query("SELECT * FROM drug ORDER BY id")
     suspend fun getAll(): List<Drug>

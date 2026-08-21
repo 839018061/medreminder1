@@ -1,5 +1,6 @@
 package com.example.medreminder.data.repository
 
+import com.example.medreminder.data.dao.DrugAdherence
 import com.example.medreminder.data.dao.DrugDao
 import com.example.medreminder.data.dao.RecordDao
 import com.example.medreminder.data.dao.ScheduleDao
@@ -16,6 +17,8 @@ class MedicationRepository(
     val drugs: Flow<List<Drug>> = drugDao.observeActive()
     val schedules: Flow<List<DoseSchedule>> = scheduleDao.observeActive()
     val records: Flow<List<AdherenceRecord>> = recordDao.observeAll()
+    val owners: Flow<List<String>> = drugDao.observeOwners()
+    val adherenceByDrug: Flow<List<DrugAdherence>> = recordDao.observeAdherenceByDrug()
 
     fun recordsByDate(date: String): Flow<List<AdherenceRecord>> = recordDao.observeByDate(date)
 
@@ -44,11 +47,22 @@ class MedicationRepository(
     suspend fun recordFor(scheduleId: Long, date: String): AdherenceRecord? =
         recordDao.find(scheduleId, date)
 
+    suspend fun recordById(id: Long): AdherenceRecord? = recordDao.findById(id)
+
     suspend fun insertOrUpdateRecord(record: AdherenceRecord) {
         val existing = recordDao.find(record.scheduleId, record.planDate)
         if (existing == null) recordDao.insert(record)
         else recordDao.update(record.copy(id = existing.id))
     }
+
+    /** 撤销打卡（5 分钟窗口内），返回是否成功撤销 */
+    suspend fun undoTake(recordId: Long): Boolean =
+        recordDao.undoTake(
+            recordId,
+            AdherenceRecord.PENDING,
+            AdherenceRecord.TAKEN,
+            AdherenceRecord.LATE
+        ) > 0
 
     suspend fun clearAll() {
         recordDao.clear()

@@ -38,6 +38,7 @@ import com.example.medreminder.util.DateUtils
 @Composable
 fun StatsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val records by vm.records.collectAsState()
+    val adherenceByDrug by vm.adherenceByDrug.collectAsState()
     val today = DateUtils.today()
 
     val last7 = records.filter { it.planDate >= DateUtils.daysAgo(6) && it.planDate <= today }
@@ -68,6 +69,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit) {
         ) {
             RateCard("近 7 天", s7)
             RateCard("近 30 天", s30)
+            DrugRateCard(adherenceByDrug)
         }
     }
 }
@@ -89,7 +91,57 @@ private fun RateCard(title: String, s: AdherenceCalculator.Summary) {
                 StatItem("总计划", s.total, Color.Gray)
                 StatItem("按时", s.taken, BrandGreen)
                 StatItem("补服", s.late, WarmOrange)
+                StatItem("跳过", s.skipped, Color.Gray)
                 StatItem("漏服", s.missed, ErrorRed)
+            }
+        }
+    }
+}
+
+/** 按药品分组的依从率 */
+@Composable
+private fun DrugRateCard(items: List<com.example.medreminder.data.dao.DrugAdherence>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("按药品", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            if (items.isEmpty()) {
+                Text(
+                    "暂无统计数据",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                items.forEach { item ->
+                    val finalized = item.taken + item.late + item.skipped + item.missed
+                    val rate = if (finalized == 0) 1f
+                    else (item.taken * 1f + item.late * 0.5f + item.skipped * 0.5f) / finalized
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                item.drugName,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "总 ${item.total} · 按时 ${item.taken} · 补服 ${item.late} · 跳过 ${item.skipped} · 漏服 ${item.missed}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            "${(rate * 100).toInt()}%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (rate >= 0.8f) BrandGreen else if (rate >= 0.5f) WarmOrange else ErrorRed
+                        )
+                    }
+                }
             }
         }
     }

@@ -57,6 +57,7 @@ fun RegimenEditScreen(vm: MainViewModel, onBack: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
     var remark by remember { mutableStateOf("") }
+    var owner by remember { mutableStateOf("") }
     val timePoints = remember { mutableStateListOf(TimePointDraft()) }
 
     val relations = listOf("饭前", "饭后", "睡前", "无")
@@ -102,6 +103,13 @@ fun RegimenEditScreen(vm: MainViewModel, onBack: () -> Unit) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            OutlinedTextField(
+                value = owner,
+                onValueChange = { owner = it },
+                label = { Text("用药人（可选，默认\"我\"）") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Text("服药时间", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             timePoints.forEachIndexed { index, tp ->
@@ -126,7 +134,12 @@ fun RegimenEditScreen(vm: MainViewModel, onBack: () -> Unit) {
                 onClick = {
                     val validTime = timePoints.all { it.time.matches(Regex("\\d{1,2}:\\d{2}")) }
                     if (name.isBlank() || dosage.isBlank() || !validTime) return@Button
-                    val drug = Drug(name = name.trim(), dosage = dosage.trim(), remark = remark.trim())
+                    val drug = Drug(
+                        name = name.trim(),
+                        dosage = dosage.trim(),
+                        remark = remark.trim(),
+                        owner = owner.trim().ifBlank { "我" }
+                    )
                     val schedules = timePoints.map { tp ->
                         val rd = if (tp.useDaily || tp.weekDays.isEmpty()) "daily"
                         else tp.weekDays.sorted().joinToString(",")

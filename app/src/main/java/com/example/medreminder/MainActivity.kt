@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,6 +31,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot(vm: MainViewModel = viewModel()) {
     val nav = rememberNavController()
+
+    // 首次启动：若精确闹钟/通知权限有缺失，自动引导开启
+    LaunchedEffect(Unit) {
+        if (vm.shouldAutoShowPermissionGuide()) {
+            vm.markPermissionGuideAutoShown()
+            nav.navigate("permissions")
+        }
+    }
+
     NavHost(navController = nav, startDestination = "home") {
         composable("home") {
             HomeScreen(

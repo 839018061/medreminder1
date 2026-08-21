@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.medreminder.MedReminderApp
 import com.example.medreminder.data.entity.AdherenceRecord
+import com.example.medreminder.data.entity.DoseSchedule
 import com.example.medreminder.util.DateUtils
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -65,6 +68,8 @@ class FullScreenAlarmActivity : ComponentActivity() {
                 relation = relation,
                 onTake = { mark(AdherenceRecord.TAKEN) },
                 onLate = { mark(AdherenceRecord.LATE) },
+                onSkip = { mark(AdherenceRecord.SKIPPED) },
+                onSnooze = { snooze() },
                 onDismiss = { finish() }
             )
         }
@@ -87,18 +92,50 @@ class FullScreenAlarmActivity : ComponentActivity() {
         }
     }
 
+    /** 已服药 / 补服 / 跳过：更新当天记录状态并关闭弹窗 */
     private fun mark(status: String) {
-        val app = application as com.example.medreminder.MedReminderApp
+        val app = application as MedReminderApp
         MainScope().launch {
-            app.repository.insertOrUpdateRecord(
-                AdherenceRecord(
+            val repo = app.repository
+            val existing = repo.recordFor(scheduleId, DateUtils.today())
+            val now = System.currentTimeMillis()
+            val takenAt = if (status == AdherenceRecord.TAKEN || status == AdherenceRecord.LATE) now else null
+            repo.insertOrUpdateRecord(
+                (existing ?: AdherenceRecord(
+                    scheduleId = scheduleId,
+                    drugName = drugName,
+                    planDate = DateUtils.today(),
+                    planTime = now,
+                    actualTime = null,
+                    status = AdherenceRecord.PENDING
+                )).copy(status = status, actualTime = takenAt, takenAt = takenAt)
+            )
+            finish()
+        }
+    }
+
+    /** 小睡：snoozeCount+1，未超限则重排 10 分钟；超限则记为 MISSED */
+    private fun snooze() {
+        val app = application as MedReminderApp
+        MainScope().launch {
+            val repo = app.repository
+            val existing = repo.recordFor(scheduleId, DateUtils.today())
+            val snoozeCount = (existing?.snoozeCount ?: 0)
+            val next = snoozeCount + 1
+            val schedule = repo.scheduleById(scheduleId)
+            val canSnooze = schedule != null && AlarmScheduler.snooze(
+                app, schedule, drugName, dosage, next
+            )
+            val newStatus = if (canSnooze) AdherenceRecord.SNOOZED else AdherenceRecord.MISSED
+            repo.insertOrUpdateRecord(
+                (existing ?: AdherenceRecord(
                     scheduleId = scheduleId,
                     drugName = drugName,
                     planDate = DateUtils.today(),
                     planTime = System.currentTimeMillis(),
-                    actualTime = System.currentTimeMillis(),
-                    status = status
-                )
+                    actualTime = null,
+                    status = AdherenceRecord.PENDING
+                )).copy(status = newStatus, snoozeCount = next)
             )
             finish()
         }
@@ -125,13 +162,15 @@ class FullScreenAlarmActivity : ComponentActivity() {
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun AlarmScreen(
     drugName: String,
     dosage: String,
     relation: String,
     onTake: () -> Unit,
     onLate: () -> Unit,
+    onSkip: () -> Unit,
+    onSnooze: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val time = remember { mutableStateOf(currentHm()) }
@@ -172,8 +211,16 @@ private fun AlarmScreen(
                 Text("补服", fontSize = 20.sp)
             }
             Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                Text("跳过本次", fontSize = 20.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onSnooze) {
+                Text("小睡 10 分钟", color = MaterialTheme.colorScheme.onPrimary)
+            }
+            Spacer(Modifier.height(4.dp))
             TextButton(onClick = onDismiss) {
-                Text("稍后提醒", color = MaterialTheme.colorScheme.onPrimary)
+                Text("关闭", color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }

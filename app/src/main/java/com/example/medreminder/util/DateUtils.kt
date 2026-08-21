@@ -40,6 +40,16 @@ object DateUtils {
         return cal.timeInMillis
     }
 
+    /** 今天 00:00 的时间戳（毫秒） */
+    fun startOfDayMillis(date: String = today()): Long {
+        val c = Calendar.getInstance()
+        c.set(Calendar.HOUR_OF_DAY, 0)
+        c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        return c.timeInMillis
+    }
+
     fun todayAtMillis(time: String): Long {
         val (h, m) = parseTime(time)
         val cal = Calendar.getInstance().apply {

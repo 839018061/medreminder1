@@ -16,10 +16,27 @@ object AlarmScheduler {
     const val EXTRA_DOSAGE = "dosage"
     const val EXTRA_RELATION = "relation"
 
+    const val MAX_SNOOZE = 3
+    private const val SNOOZE_MS = 10 * 60 * 1000L // 小睡 10 分钟
+
     fun schedule(context: Context, schedule: DoseSchedule, drugName: String, dosage: String) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pi = pendingIntent(context, schedule, drugName, dosage)
         val triggerAt = DateUtils.nextTriggerMillis(schedule.time, schedule.repeatDays)
+        setExact(am, triggerAt, pi)
+    }
+
+    /** 小睡重排：10 分钟后再次提醒，超过最大次数则不再重排（由调用方标记 MISSED） */
+    fun snooze(context: Context, schedule: DoseSchedule, drugName: String, dosage: String, snoozeCount: Int): Boolean {
+        if (snoozeCount >= MAX_SNOOZE) return false
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pi = pendingIntent(context, schedule, drugName, dosage)
+        val triggerAt = System.currentTimeMillis() + SNOOZE_MS
+        setExact(am, triggerAt, pi)
+        return true
+    }
+
+    private fun setExact(am: AlarmManager, triggerAt: Long, pi: PendingIntent) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
             return

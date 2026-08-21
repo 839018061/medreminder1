@@ -10,5 +10,6 @@ data class Drug(
     val name: String,          // 药品名
     val dosage: String,        // 单次剂量，如 "1片"、"5ml"
     val remark: String = "",   // 备注（饭前/饭后等补充）
+    val owner: String = "我",  // 用药人（本地多用药人）
     val active: Boolean = true
 )

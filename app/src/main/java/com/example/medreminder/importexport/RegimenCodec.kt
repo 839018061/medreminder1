@@ -17,6 +17,7 @@ data class DrugItem(
     val name: String,
     val dosage: String,
     val remark: String = "",
+    val owner: String = "我",
     val times: List<TimeItem> = emptyList()
 )
 
@@ -36,7 +37,7 @@ object RegimenCodec {
 
     fun regimenToEntities(regimen: Regimen): List<Pair<Drug, List<DoseSchedule>>> =
         regimen.drugs.map { item ->
-            val drug = Drug(name = item.name, dosage = item.dosage, remark = item.remark)
+            val drug = Drug(name = item.name, dosage = item.dosage, remark = item.remark, owner = item.owner)
             val schedules = item.times.map { t ->
                 DoseSchedule(drugId = drug.id, time = t.time, repeatDays = t.repeatDays, relation = t.relation)
             }
@@ -50,6 +51,7 @@ object RegimenCodec {
                     name = d.name,
                     dosage = d.dosage,
                     remark = d.remark,
+                    owner = d.owner,
                     times = schedules.filter { it.drugId == d.id }.map { s ->
                         TimeItem(s.time, s.repeatDays, s.relation)
                     }
