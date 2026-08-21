@@ -14,14 +14,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import android.content.Intent
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.example.medreminder.importexport.RegimenCodec
 import com.example.medreminder.ui.MainViewModel
 import com.example.medreminder.ui.theme.BrandGreen
@@ -125,8 +123,9 @@ fun ImportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 )
             }
 
-            androidx.compose.foundation.layout.Spacer(androidx.compose.foundation.layout.height(8.dp))
+            Spacer(Modifier.height(8.dp))
             Text("导出用药方案（分享给家属）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
                     val uri = PdfExporter.export(context, drugs, schedules)
@@ -144,8 +143,7 @@ fun ImportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 enabled = drugs.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                Icon(Icons.Default.PictureAsPdf, null)
-                Spacer(Modifier.height(0.dp))
+                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                 Text(" 导出 PDF 并分享")
             }
         }
