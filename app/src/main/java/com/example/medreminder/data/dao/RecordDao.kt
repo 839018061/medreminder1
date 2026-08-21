@@ -38,8 +38,8 @@ interface RecordDao {
     @Query("SELECT * FROM adherence_record WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): AdherenceRecord?
 
-    /** 撤销打卡：仅允许在 taken_at 之后 5 分钟内，将已打卡记录还原为待处理 */
-    @Query("UPDATE adherence_record SET status = :pending, actual_time = NULL, taken_at = NULL WHERE id = :id AND status IN (:taken, :late)")
+    /** 撤销打卡：将已打卡记录还原为待处理 */
+    @Query("UPDATE adherence_record SET status = :pending, actualTime = NULL, takenAt = NULL WHERE id = :id AND status IN (:taken, :late)")
     suspend fun undoTake(id: Long, pending: String, taken: String, late: String): Int
 
     /** 按药品分组的依从性统计 */

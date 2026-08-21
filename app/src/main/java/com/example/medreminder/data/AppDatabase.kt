@@ -27,14 +27,14 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        /** v1 -> v2：adherence_record 新增 snooze_count / taken_at 列，drug 新增 owner 列，保留历史数据 */
+        /** v1 -> v2：adherence_record 新增 snoozeCount / takenAt 列，drug 新增 owner 列，保留历史数据 */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
-                    "ALTER TABLE adherence_record ADD COLUMN snooze_count INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE adherence_record ADD COLUMN snoozeCount INTEGER NOT NULL DEFAULT 0"
                 )
                 db.execSQL(
-                    "ALTER TABLE adherence_record ADD COLUMN taken_at INTEGER"
+                    "ALTER TABLE adherence_record ADD COLUMN takenAt INTEGER"
                 )
                 db.execSQL(
                     "ALTER TABLE drug ADD COLUMN owner TEXT NOT NULL DEFAULT '我'"
